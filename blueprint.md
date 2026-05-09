@@ -4,6 +4,7 @@
 A sophisticated, real-time-inspired community platform for sharing information. Built with a "Baseline" approach using framework-less web technologies (HTML, CSS, JS) and Web Components. The aesthetic is clean, featuring a white background with sky blue accents.
 
 ## Features & Design
+- **Welcome Screen:** A sophisticated initial view that greets users and encourages them to explore categories.
 - **Category-based Navigation:** A sidebar allowing users to browse main categories and their sub-sections.
 - **Interactive Chat UI:** A modern chat interface with message bubbles, status indicators, and input fields.
 - **Sophisticated Aesthetic:**
@@ -13,15 +14,10 @@ A sophisticated, real-time-inspired community platform for sharing information. 
     - **Interactivity:** Subtle transitions, hover glows, and responsive layout.
 
 ## Current State
-- Initializing project structure.
-- Planning core components: `<community-sidebar>`, `<community-chat>`, `<community-app>`.
+- Implementation of core components and initial welcome screen completed.
+- Sidebar logo navigation added to return home.
 
-## Current Plan (Implementation Phase 1)
-1.  **Project Structure:** Create `index.html`, `style.css`, and `main.js`.
-2.  **Design System:** Define CSS variables for the color palette, typography, and spacing.
-3.  **Web Components:**
-    - Implement `<community-sidebar>` for category selection.
-    - Implement `<community-chat>` for the message interface.
-    - Implement `<community-app>` to orchestrate the layout.
-4.  **Mock Data:** Populate categories and messages for the prototype.
-5.  **Refinement:** Apply modern CSS features (OKLCH, :has, container queries) for a polished look.
+## Current Plan (Implementation Phase 2)
+1.  **Code Consistency:** Ensure all components use Shadow DOM or consistent global styles.
+2.  **Persistence:** Explore using LocalStorage to keep messages across sessions.
+3.  **Real-time Interaction:** (Optional) Add multi-tab communication using BroadcastChannel.
