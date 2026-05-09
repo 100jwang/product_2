@@ -27,7 +27,8 @@ const MOCK_DATA = {
 class CommunityApp extends HTMLElement {
     constructor() {
         super();
-        this.activeCategory = null; // Start with no category selected
+        this.viewState = 'welcome'; // 'welcome', 'chat', 'feedback'
+        this.activeCategory = null;
     }
 
     connectedCallback() {
@@ -35,24 +36,164 @@ class CommunityApp extends HTMLElement {
         this.addEventListener('category-change', (e) => {
             const catId = e.detail.id;
             this.activeCategory = MOCK_DATA.categories.find(c => c.id === catId);
+            this.viewState = 'chat';
             this.render();
         });
         
-        // Listen for logo click to go back to welcome
         this.addEventListener('go-home', () => {
             this.activeCategory = null;
+            this.viewState = 'welcome';
+            this.render();
+        });
+
+        this.addEventListener('go-feedback', () => {
+            this.activeCategory = null;
+            this.viewState = 'feedback';
             this.render();
         });
     }
 
     render() {
+        let mainContent = '';
+        if (this.viewState === 'welcome') {
+            mainContent = `<community-welcome></community-welcome>`;
+        } else if (this.viewState === 'feedback') {
+            mainContent = `<community-feedback></community-feedback>`;
+        } else if (this.viewState === 'chat' && this.activeCategory) {
+            mainContent = `<community-chat active-id="${this.activeCategory.id}"></community-chat>`;
+        }
+
         this.innerHTML = `
             <div class="app-container">
-                <community-sidebar active-id="${this.activeCategory ? this.activeCategory.id : ''}"></community-sidebar>
-                ${this.activeCategory 
-                    ? `<community-chat active-id="${this.activeCategory.id}"></community-chat>`
-                    : `<community-welcome></community-welcome>`
+                <community-sidebar active-id="${this.activeCategory ? this.activeCategory.id : ''}" active-view="${this.viewState}"></community-sidebar>
+                ${mainContent}
+            </div>
+        `;
+    }
+}
+
+class CommunityFeedback extends HTMLElement {
+    connectedCallback() {
+        this.render();
+        this.initForm();
+    }
+
+    initForm() {
+        setTimeout(() => {
+            if (window.formspree) {
+                window.formspree('initForm', { 
+                    formElement: this.querySelector('#feedback-form'), 
+                    formId: 'xqenygrb' 
+                });
+            }
+        }, 100);
+    }
+
+    render() {
+        this.innerHTML = `
+            <style>
+                community-feedback {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    background-color: var(--bg-color);
+                    padding: var(--spacing-lg);
                 }
+                .feedback-container {
+                    width: 100%;
+                    max-width: 500px;
+                    background: white;
+                    padding: 40px;
+                    border-radius: var(--radius-lg);
+                    box-shadow: var(--shadow-lg);
+                    border: 1px solid var(--border-color);
+                }
+                .feedback-container h2 {
+                    font-size: 1.75rem;
+                    font-weight: 800;
+                    margin-bottom: var(--spacing-sm);
+                    color: var(--primary-color);
+                }
+                .feedback-container p {
+                    color: var(--text-muted);
+                    margin-bottom: var(--spacing-lg);
+                }
+                .form-group {
+                    margin-bottom: var(--spacing-md);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                .form-group label {
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: var(--text-color);
+                }
+                .form-group input, .form-group textarea {
+                    padding: 12px;
+                    border-radius: var(--radius-md);
+                    border: 1px solid var(--border-color);
+                    font-family: inherit;
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+                .form-group input:focus, .form-group textarea:focus {
+                    border-color: var(--primary-color);
+                }
+                .submit-btn {
+                    width: 100%;
+                    padding: 14px;
+                    background-color: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: opacity 0.2s;
+                    margin-top: var(--spacing-md);
+                }
+                .submit-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                [data-fs-success] {
+                    display: none;
+                    text-align: center;
+                    padding: 20px;
+                    background: oklch(95% 0.05 145);
+                    color: oklch(40% 0.1 145);
+                    border-radius: var(--radius-md);
+                    margin-bottom: 20px;
+                }
+                [data-fs-error] {
+                    display: none;
+                    text-align: center;
+                    padding: 10px;
+                    color: oklch(55% 0.2 25);
+                    font-size: 0.85rem;
+                }
+            </style>
+            <div class="feedback-container">
+                <div data-fs-success>의견을 보내주셔서 감사합니다! 소중히 검토하겠습니다. ✨</div>
+                <div data-fs-error>오류가 발생했습니다. 잠시 후 다시 시도해주세요.</div>
+                
+                <h2>의견 보내기</h2>
+                <p>Sky-Blue 커뮤니티를 위한 소중한 의견을 남겨주세요.</p>
+                
+                <form id="feedback-form">
+                    <div class="form-group">
+                        <label for="email">이메일 주소</label>
+                        <input type="email" id="email" name="email" placeholder="example@email.com" required data-fs-field>
+                        <span data-fs-error="email"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="message">의견 내용</label>
+                        <textarea id="message" name="message" rows="5" placeholder="커뮤니티 발전을 위한 의견을 자유롭게 적어주세요." required data-fs-field></textarea>
+                        <span data-fs-error="message"></span>
+                    </div>
+                    <button type="submit" class="submit-btn" data-fs-submit-btn>의견 제출하기</button>
+                </form>
             </div>
         `;
     }
