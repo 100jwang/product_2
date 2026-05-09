@@ -15,6 +15,30 @@
         window.formspree = window.formspree || function () { (formspree.q = formspree.q || []).push(arguments); };
     </script>
     <script src="https://unpkg.com/@formspree/ajax@1" defer></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+      // Firebase configuration placeholder
+      // User: Replace this with your actual Firebase config from the console
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      window.auth = getAuth(app);
+      window.db = getFirestore(app);
+    </script>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>

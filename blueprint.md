@@ -1,12 +1,14 @@
 # Project Blueprint: Sky-Blue Community Platform
 
 ## Overview
-A sophisticated, real-time-inspired community platform for sharing information. Built with a "Baseline" approach using framework-less web technologies (HTML, CSS, JS) and Web Components. The aesthetic is clean, featuring a white background with sky blue accents.
+A sophisticated, real-time-inspired community platform for sharing information. Built with a "Baseline" approach using framework-less web technologies (HTML, CSS, JS) and Web Components. Integrated with Firebase for secure authentication and real-time data persistence.
 
 ## Features & Design
+- **Authentication:** Firebase Auth supporting Google Login and Email/Password sign-in.
+- **Persistent Real-time Chat:** Cloud Firestore for storing and syncing messages across all users in real-time.
 - **Welcome Screen:** A sophisticated initial view that greets users and encourages them to explore categories.
+- **Feedback Form:** A dedicated feedback submission system integrated with Formspree, accessible from the sidebar.
 - **Category-based Navigation:** A sidebar allowing users to browse main categories and their sub-sections.
-- **Interactive Chat UI:** A modern chat interface with message bubbles, status indicators, and input fields.
 - **Sophisticated Aesthetic:**
     - **Palette:** White (`#ffffff`), Sky Blue (`oklch(75% 0.15 230)`), and soft grays.
     - **Shadows:** Deep, multi-layered shadows for a "lifted" card feel.
@@ -14,10 +16,12 @@ A sophisticated, real-time-inspired community platform for sharing information. 
     - **Interactivity:** Subtle transitions, hover glows, and responsive layout.
 
 ## Current State
-- Implementation of core components and initial welcome screen completed.
-- Sidebar logo navigation added to return home.
+- Core UI components and navigation implemented.
+- Formspree feedback integration complete.
+- **In Progress:** Integrating Firebase Authentication and Firestore persistence.
 
-## Current Plan (Implementation Phase 2)
-1.  **Code Consistency:** Ensure all components use Shadow DOM or consistent global styles.
-2.  **Persistence:** Explore using LocalStorage to keep messages across sessions.
-3.  **Real-time Interaction:** (Optional) Add multi-tab communication using BroadcastChannel.
+## Current Plan (Firebase Integration)
+1.  **Firebase Setup:** Add SDKs and configuration placeholders.
+2.  **Auth UI:** Create `<community-auth>` for login/signup.
+3.  **Persistence:** Migrate `<community-chat>` to use Firestore for message storage.
+4.  **User State:** Display user profile in messages and sidebar.

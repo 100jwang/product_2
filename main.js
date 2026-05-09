@@ -3,23 +3,33 @@
  * Built with Web Components & Modern CSS
  */
 
+import { 
+    onAuthStateChanged, 
+    signInWithPopup, 
+    GoogleAuthProvider, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+import {
+    collection,
+    addDoc,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
 const MOCK_DATA = {
     categories: [
         { id: 'tech', name: '기술 & 개발', icon: '💻', sub: ['자바스크립트', '인공지능', '프론트엔드'] },
         { id: 'life', name: '라이프스타일', icon: '🌿', sub: ['건강', '인테리어', '맛집'] },
         { id: 'market', name: '정보 장터', icon: '🛒', sub: ['중고거래', '무료나눔', '구매대행'] },
         { id: 'hobby', name: '취미 생활', icon: '🎨', sub: ['드로잉', '사진', '캠핑'] }
-    ],
-    messages: {
-        'tech': [
-            { id: 1, user: 'DevKing', text: '여러분, 최근에 나온 Baseline 기능들 보셨나요? 대단하네요!', time: '오후 2:30', mine: false },
-            { id: 2, user: '나', text: '네! 특히 :has() 선택자가 정말 유용한 것 같아요.', time: '오후 2:31', mine: true }
-        ],
-        'life': [
-            { id: 1, user: '식물집사', text: '몬스테라 잎이 노랗게 변하는데 이유를 아시는 분?', time: '오후 1:15', mine: false },
-            { id: 2, user: '닥터플랜트', text: '과습일 확률이 높아요. 통풍에 신경 써보세요!', time: '오후 1:20', mine: false }
-        ]
-    }
+    ]
 };
 
 // --- Web Components ---
@@ -29,11 +39,23 @@ class CommunityApp extends HTMLElement {
         super();
         this.viewState = 'welcome'; // 'welcome', 'chat', 'feedback'
         this.activeCategory = null;
+        this.user = null;
     }
 
     connectedCallback() {
         this.render();
+        
+        // Listen for Auth changes
+        onAuthStateChanged(window.auth, (user) => {
+            this.user = user;
+            this.render();
+        });
+
         this.addEventListener('category-change', (e) => {
+            if (!this.user) {
+                this.showAuthModal();
+                return;
+            }
             const catId = e.detail.id;
             this.activeCategory = MOCK_DATA.categories.find(c => c.id === catId);
             this.viewState = 'chat';
@@ -47,10 +69,26 @@ class CommunityApp extends HTMLElement {
         });
 
         this.addEventListener('go-feedback', () => {
+            if (!this.user) {
+                this.showAuthModal();
+                return;
+            }
             this.activeCategory = null;
             this.viewState = 'feedback';
             this.render();
         });
+
+        this.addEventListener('logout', async () => {
+            await signOut(window.auth);
+            this.activeCategory = null;
+            this.viewState = 'welcome';
+            this.render();
+        });
+    }
+
+    showAuthModal() {
+        const modal = document.createElement('community-auth');
+        document.body.appendChild(modal);
     }
 
     render() {
@@ -65,10 +103,205 @@ class CommunityApp extends HTMLElement {
 
         this.innerHTML = `
             <div class="app-container">
-                <community-sidebar active-id="${this.activeCategory ? this.activeCategory.id : ''}" active-view="${this.viewState}"></community-sidebar>
+                <community-sidebar 
+                    active-id="${this.activeCategory ? this.activeCategory.id : ''}" 
+                    active-view="${this.viewState}"
+                    user-name="${this.user ? (this.user.displayName || this.user.email) : ''}"
+                    user-photo="${this.user ? this.user.photoURL : ''}">
+                </community-sidebar>
                 ${mainContent}
             </div>
         `;
+    }
+}
+
+class CommunityAuth extends HTMLElement {
+    connectedCallback() {
+        this.isSignUp = false;
+        this.render();
+    }
+
+    async handleGoogleLogin() {
+        const provider = new GoogleAuthProvider();
+        try {
+            await signInWithPopup(window.auth, provider);
+            this.remove();
+        } catch (error) {
+            console.error(error);
+            alert("Google 로그인 중 오류가 발생했습니다. Firebase 설정(API Key 등)을 확인해주세요.");
+        }
+    }
+
+    async handleEmailAuth(e) {
+        e.preventDefault();
+        const email = this.querySelector('#email').value;
+        const password = this.querySelector('#password').value;
+        const name = this.querySelector('#name')?.value;
+
+        try {
+            if (this.isSignUp) {
+                const userCredential = await createUserWithEmailAndPassword(window.auth, email, password);
+                if (name) {
+                    await updateProfile(userCredential.user, { displayName: name });
+                }
+            } else {
+                await signInWithEmailAndPassword(window.auth, email, password);
+            }
+            this.remove();
+        } catch (error) {
+            console.error(error);
+            alert(this.isSignUp ? "회원가입 중 오류가 발생했습니다." : "로그인 정보가 올바르지 않습니다.");
+        }
+    }
+
+    toggleMode() {
+        this.isSignUp = !this.isSignUp;
+        this.render();
+    }
+
+    render() {
+        this.innerHTML = `
+            <style>
+                community-auth {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                    backdrop-filter: blur(4px);
+                    font-family: 'Inter', sans-serif;
+                }
+                .auth-card {
+                    background: white;
+                    padding: 40px;
+                    border-radius: var(--radius-lg);
+                    box-shadow: var(--shadow-lg);
+                    width: 100%;
+                    max-width: 400px;
+                    text-align: center;
+                }
+                .auth-card h2 {
+                    font-size: 1.5rem;
+                    font-weight: 800;
+                    margin-bottom: var(--spacing-md);
+                    color: var(--primary-color);
+                }
+                .auth-card p {
+                    color: var(--text-muted);
+                    margin-bottom: var(--spacing-lg);
+                    font-size: 0.9rem;
+                }
+                .form-group {
+                    margin-bottom: var(--spacing-md);
+                    text-align: left;
+                }
+                .form-group label {
+                    display: block;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    margin-bottom: 4px;
+                }
+                .form-group input {
+                    width: 100%;
+                    padding: 12px;
+                    border-radius: var(--radius-md);
+                    border: 1px solid var(--border-color);
+                    outline: none;
+                }
+                .auth-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: var(--primary-color);
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    font-weight: 700;
+                    cursor: pointer;
+                    margin-bottom: var(--spacing-md);
+                }
+                .google-btn {
+                    width: 100%;
+                    padding: 12px;
+                    background: white;
+                    color: var(--text-color);
+                    border: 1px solid var(--border-color);
+                    border-radius: var(--radius-md);
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    margin-bottom: var(--spacing-lg);
+                }
+                .toggle-mode {
+                    font-size: 0.85rem;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                }
+                .toggle-mode span {
+                    color: var(--primary-color);
+                    font-weight: 600;
+                }
+                .close-btn {
+                    margin-top: var(--spacing-md);
+                    font-size: 0.8rem;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    text-decoration: underline;
+                }
+            </style>
+            <div class="auth-card">
+                <h2>${this.isSignUp ? "회원가입" : "로그인"}</h2>
+                <p>커뮤니티 활동을 위해 로그인이 필요합니다.</p>
+                
+                <button class="google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" width="18">
+                    Google로 ${this.isSignUp ? "시작하기" : "로그인"}
+                </button>
+                
+                <div style="margin: 20px 0; color: #ccc; font-size: 0.8rem; display: flex; align-items: center; gap: 10px;">
+                    <div style="flex: 1; height: 1px; background: #eee;"></div>
+                    또는 이메일로 ${this.isSignUp ? "가입" : "로그인"}
+                    <div style="flex: 1; height: 1px; background: #eee;"></div>
+                </div>
+
+                <form id="auth-form">
+                    ${this.isSignUp ? `
+                    <div class="form-group">
+                        <label>이름</label>
+                        <input type="text" id="name" placeholder="홍길동" required>
+                    </div>
+                    ` : ''}
+                    <div class="form-group">
+                        <label>이메일</label>
+                        <input type="email" id="email" placeholder="example@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>비밀번호</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="auth-btn">${this.isSignUp ? "가입하기" : "로그인"}</button>
+                </form>
+                
+                <div class="toggle-mode">
+                    ${this.isSignUp ? "이미 계정이 있으신가요?" : "처음이신가요?"}
+                    <span id="toggle-auth">${this.isSignUp ? "로그인하기" : "회원가입하기"}</span>
+                </div>
+                
+                <div class="close-btn" id="close-auth">나중에 하기</div>
+            </div>
+        `;
+
+        this.querySelector('.google-btn').onclick = () => this.handleGoogleLogin();
+        this.querySelector('#auth-form').onsubmit = (e) => this.handleEmailAuth(e);
+        this.querySelector('#toggle-auth').onclick = () => this.toggleMode();
+        this.querySelector('#close-auth').onclick = () => this.remove();
     }
 }
 
@@ -273,7 +506,7 @@ class CommunityWelcome extends HTMLElement {
 }
 
 class CommunitySidebar extends HTMLElement {
-    static get observedAttributes() { return ['active-id', 'active-view']; }
+    static get observedAttributes() { return ['active-id', 'active-view', 'user-name', 'user-photo']; }
 
     attributeChangedCallback() {
         this.render();
@@ -286,6 +519,8 @@ class CommunitySidebar extends HTMLElement {
     render() {
         const activeId = this.getAttribute('active-id');
         const activeView = this.getAttribute('active-view');
+        const userName = this.getAttribute('user-name');
+        const userPhoto = this.getAttribute('user-photo');
 
         this.innerHTML = `
             <style>
@@ -351,6 +586,43 @@ class CommunitySidebar extends HTMLElement {
                     padding-top: var(--spacing-lg);
                     border-top: 1px solid var(--border-color);
                     margin-top: auto;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+                .user-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 12px;
+                    background: white;
+                    border-radius: var(--radius-md);
+                    box-shadow: var(--shadow-sm);
+                    margin-bottom: 8px;
+                }
+                .user-avatar {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: var(--primary-glow);
+                    object-fit: cover;
+                }
+                .user-details {
+                    flex: 1;
+                    overflow: hidden;
+                }
+                .user-name {
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .logout-btn {
+                    font-size: 0.7rem;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    text-decoration: underline;
                 }
                 .feedback-btn {
                     width: 100%;
@@ -390,6 +662,15 @@ class CommunitySidebar extends HTMLElement {
                 </ul>
             </div>
             <div class="sidebar-footer">
+                ${userName ? `
+                    <div class="user-info">
+                        <img class="user-avatar" src="${userPhoto || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}" alt="Avatar">
+                        <div class="user-details">
+                            <div class="user-name">${userName}</div>
+                            <div class="logout-btn" id="logout-trigger">로그아웃</div>
+                        </div>
+                    </div>
+                ` : ''}
                 <button class="feedback-btn ${activeView === 'feedback' ? 'active' : ''}">
                     <span>💬</span> 의견 제공
                 </button>
@@ -403,6 +684,12 @@ class CommunitySidebar extends HTMLElement {
         this.querySelector('.feedback-btn').onclick = () => {
             this.dispatchEvent(new CustomEvent('go-feedback', { bubbles: true }));
         };
+
+        if (userName) {
+            this.querySelector('#logout-trigger').onclick = () => {
+                this.dispatchEvent(new CustomEvent('logout', { bubbles: true }));
+            };
+        }
 
         this.querySelectorAll('.cat-item').forEach(item => {
             item.onclick = () => {
@@ -420,51 +707,84 @@ class CommunityChat extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.messages = [];
+        this.unsubscribe = null;
     }
 
     static get observedAttributes() { return ['active-id']; }
 
     attributeChangedCallback() {
-        this.loadMessages();
+        this.setupRealtimeMessages();
         this.render();
     }
 
     connectedCallback() {
-        this.loadMessages();
+        this.setupRealtimeMessages();
         this.render();
     }
 
-    loadMessages() {
-        const catId = this.getAttribute('active-id');
-        this.messages = [...(MOCK_DATA.messages[catId] || [])];
+    disconnectedCallback() {
+        if (this.unsubscribe) this.unsubscribe();
     }
 
-    sendMessage() {
-        const input = this.shadowRoot.querySelector('.message-input');
-        if (!input.value.trim()) return;
-
-        const newMessage = {
-            id: Date.now(),
-            user: '나',
-            text: input.value,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            mine: true
-        };
-
-        this.messages.push(newMessage);
-        input.value = '';
-        this.render();
+    setupRealtimeMessages() {
+        if (this.unsubscribe) this.unsubscribe();
         
-        // Auto-scroll to bottom
+        const catId = this.getAttribute('active-id');
+        if (!catId) return;
+
+        const q = query(
+            collection(window.db, "messages"),
+            where("categoryId", "==", catId),
+            orderBy("timestamp", "asc")
+        );
+
+        this.unsubscribe = onSnapshot(q, (snapshot) => {
+            this.messages = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            this.render();
+            this.scrollToBottom();
+        });
+    }
+
+    async sendMessage() {
+        const input = this.shadowRoot.querySelector('.message-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const user = window.auth.currentUser;
+        if (!user) return;
+
+        const catId = this.getAttribute('active-id');
+
+        try {
+            await addDoc(collection(window.db, "messages"), {
+                categoryId: catId,
+                userId: user.uid,
+                userName: user.displayName || user.email,
+                userPhoto: user.photoURL,
+                text: text,
+                timestamp: serverTimestamp()
+            });
+            input.value = '';
+        } catch (error) {
+            console.error("Error sending message: ", error);
+            alert("메시지 전송 중 오류가 발생했습니다. Firestore 설정을 확인해주세요.");
+        }
+    }
+
+    scrollToBottom() {
         setTimeout(() => {
             const list = this.shadowRoot.querySelector('.message-list');
-            list.scrollTop = list.scrollHeight;
-        }, 0);
+            if (list) list.scrollTop = list.scrollHeight;
+        }, 100);
     }
 
     render() {
         const catId = this.getAttribute('active-id');
         const cat = MOCK_DATA.categories.find(c => c.id === catId);
+        if (!cat) return;
 
         this.shadowRoot.innerHTML = `
             <style>
@@ -549,10 +869,11 @@ class CommunityChat extends HTMLElement {
             <div class="message-list">
                 ${this.messages.map(msg => `
                     <community-message 
-                        user="${msg.user}" 
+                        user="${msg.userName}" 
                         text="${msg.text}" 
-                        time="${msg.time}" 
-                        ${msg.mine ? 'mine' : ''}>
+                        time="${msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '전송 중...'}" 
+                        photo="${msg.userPhoto || ''}"
+                        ${msg.userId === window.auth.currentUser?.uid ? 'mine' : ''}>
                     </community-message>
                 `).join('')}
                 ${this.messages.length === 0 ? '<div class="empty-msg">아직 대화가 없습니다. 첫 메시지를 남겨보세요!</div>' : ''}
@@ -575,15 +896,31 @@ class CommunityMessage extends HTMLElement {
         const user = this.getAttribute('user');
         const text = this.getAttribute('text');
         const time = this.getAttribute('time');
+        const photo = this.getAttribute('photo');
         const isMine = this.hasAttribute('mine');
 
         this.innerHTML = `
             <style>
                 community-message {
                     display: flex;
+                    align-items: flex-end;
+                    gap: 12px;
+                    flex-direction: ${isMine ? 'row-reverse' : 'row'};
+                }
+                .avatar {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: var(--primary-glow);
+                    flex-shrink: 0;
+                    object-fit: cover;
+                }
+                .msg-content {
+                    display: flex;
                     flex-direction: column;
                     align-items: ${isMine ? 'flex-end' : 'flex-start'};
                     gap: 4px;
+                    max-width: 70%;
                 }
                 .user-name {
                     font-size: 0.75rem;
@@ -593,7 +930,6 @@ class CommunityMessage extends HTMLElement {
                 .bubble {
                     padding: var(--spacing-md);
                     border-radius: var(--radius-md);
-                    max-width: 70%;
                     font-size: 0.95rem;
                     box-shadow: var(--shadow-sm);
                     position: relative;
@@ -614,16 +950,20 @@ class CommunityMessage extends HTMLElement {
                     color: var(--text-muted);
                 }
             </style>
-            <span class="user-name">${user}</span>
-            <div class="bubble ${isMine ? 'bubble-mine' : 'bubble-other'}">
-                ${text}
+            <img class="avatar" src="${photo || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}" alt="Avatar">
+            <div class="msg-content">
+                <span class="user-name">${user}</span>
+                <div class="bubble ${isMine ? 'bubble-mine' : 'bubble-other'}">
+                    ${text}
+                </div>
+                <span class="time">${time}</span>
             </div>
-            <span class="time">${time}</span>
         `;
     }
 }
 
 customElements.define('community-app', CommunityApp);
+customElements.define('community-auth', CommunityAuth);
 customElements.define('community-sidebar', CommunitySidebar);
 customElements.define('community-chat', CommunityChat);
 customElements.define('community-message', CommunityMessage);
