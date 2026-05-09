@@ -27,7 +27,7 @@ const MOCK_DATA = {
 class CommunityApp extends HTMLElement {
     constructor() {
         super();
-        this.activeCategory = MOCK_DATA.categories[0];
+        this.activeCategory = null; // Start with no category selected
     }
 
     connectedCallback() {
@@ -37,13 +37,95 @@ class CommunityApp extends HTMLElement {
             this.activeCategory = MOCK_DATA.categories.find(c => c.id === catId);
             this.render();
         });
+        
+        // Listen for logo click to go back to welcome
+        this.addEventListener('go-home', () => {
+            this.activeCategory = null;
+            this.render();
+        });
     }
 
     render() {
         this.innerHTML = `
             <div class="app-container">
-                <community-sidebar active-id="${this.activeCategory.id}"></community-sidebar>
-                <community-chat active-id="${this.activeCategory.id}"></community-chat>
+                <community-sidebar active-id="${this.activeCategory ? this.activeCategory.id : ''}"></community-sidebar>
+                ${this.activeCategory 
+                    ? `<community-chat active-id="${this.activeCategory.id}"></community-chat>`
+                    : `<community-welcome></community-welcome>`
+                }
+            </div>
+        `;
+    }
+}
+
+class CommunityWelcome extends HTMLElement {
+    connectedCallback() {
+        this.render();
+    }
+
+    render() {
+        this.innerHTML = `
+            <style>
+                community-welcome {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    text-align: center;
+                    background-color: var(--bg-color);
+                    padding: var(--spacing-lg);
+                }
+                .welcome-card {
+                    max-width: 600px;
+                    padding: 60px;
+                    background: white;
+                    border-radius: var(--radius-lg);
+                    box-shadow: var(--shadow-lg);
+                    border: 1px solid var(--border-color);
+                    animation: fadeIn 0.8s ease-out;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .welcome-icon {
+                    font-size: 4rem;
+                    margin-bottom: var(--spacing-lg);
+                }
+                .welcome-card h1 {
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    margin-bottom: var(--spacing-md);
+                    background: linear-gradient(135deg, var(--text-color), var(--primary-color));
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                .welcome-card p {
+                    color: var(--text-muted);
+                    font-size: 1.1rem;
+                    margin-bottom: var(--spacing-lg);
+                    line-height: 1.6;
+                }
+                .explore-hint {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 12px 24px;
+                    background-color: var(--surface-color);
+                    color: var(--primary-color);
+                    border-radius: var(--radius-md);
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                }
+            </style>
+            <div class="welcome-card">
+                <div class="welcome-icon">✨</div>
+                <h1>Welcome to<br>Sky-Blue Community</h1>
+                <p>세련된 정보 공유의 시작. 왼쪽 사이드바에서 관심 있는 카테고리를 선택하여 대화에 참여해보세요.</p>
+                <div class="explore-hint">
+                    👈 왼쪽에서 카테고리를 선택해주세요
+                </div>
             </div>
         `;
     }
@@ -354,4 +436,7 @@ class CommunityMessage extends HTMLElement {
 customElements.define('community-app', CommunityApp);
 customElements.define('community-sidebar', CommunitySidebar);
 customElements.define('community-chat', CommunityChat);
+customElements.define('community-message', CommunityMessage);
+customElements.define('community-welcome', CommunityWelcome);
+ents.define('community-chat', CommunityChat);
 customElements.define('community-message', CommunityMessage);
