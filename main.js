@@ -273,7 +273,7 @@ class CommunityWelcome extends HTMLElement {
 }
 
 class CommunitySidebar extends HTMLElement {
-    static get observedAttributes() { return ['active-id']; }
+    static get observedAttributes() { return ['active-id', 'active-view']; }
 
     attributeChangedCallback() {
         this.render();
@@ -285,6 +285,8 @@ class CommunitySidebar extends HTMLElement {
 
     render() {
         const activeId = this.getAttribute('active-id');
+        const activeView = this.getAttribute('active-view');
+
         this.innerHTML = `
             <style>
                 community-sidebar {
@@ -293,13 +295,20 @@ class CommunitySidebar extends HTMLElement {
                     padding: var(--spacing-lg);
                     display: flex;
                     flex-direction: column;
-                    gap: var(--spacing-lg);
+                    height: 100vh;
                 }
                 .logo {
                     font-size: 1.5rem;
                     font-weight: 800;
                     color: var(--primary-color);
-                    margin-bottom: var(--spacing-md);
+                    margin-bottom: var(--spacing-lg);
+                }
+                .sidebar-nav {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-lg);
+                    overflow-y: auto;
                 }
                 .cat-list {
                     list-style: none;
@@ -338,22 +347,62 @@ class CommunitySidebar extends HTMLElement {
                     flex-direction: column;
                     gap: 4px;
                 }
+                .sidebar-footer {
+                    padding-top: var(--spacing-lg);
+                    border-top: 1px solid var(--border-color);
+                    margin-top: auto;
+                }
+                .feedback-btn {
+                    width: 100%;
+                    padding: var(--spacing-md);
+                    border-radius: var(--radius-md);
+                    border: 1px solid var(--border-color);
+                    background: white;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    font-weight: 600;
+                    transition: all 0.2s;
+                    color: var(--text-muted);
+                }
+                .feedback-btn:hover, .feedback-btn.active {
+                    border-color: var(--primary-color);
+                    color: var(--primary-color);
+                    background: var(--bg-color);
+                }
             </style>
-            <div class="logo">SKY BLUE</div>
-            <ul class="cat-list">
-                ${MOCK_DATA.categories.map(cat => `
-                    <li class="cat-group">
-                        <div class="cat-item ${cat.id === activeId ? 'active' : ''}" data-id="${cat.id}">
-                            <span>${cat.icon}</span>
-                            <span>${cat.name}</span>
-                        </div>
-                        <div class="sub-list">
-                            ${cat.sub.map(s => `<div># ${s}</div>`).join('')}
-                        </div>
-                    </li>
-                `).join('')}
-            </ul>
+            <div class="logo" style="cursor: pointer;">SKY BLUE</div>
+            <div class="sidebar-nav">
+                <ul class="cat-list">
+                    ${MOCK_DATA.categories.map(cat => `
+                        <li class="cat-group">
+                            <div class="cat-item ${cat.id === activeId ? 'active' : ''}" data-id="${cat.id}">
+                                <span>${cat.icon}</span>
+                                <span>${cat.name}</span>
+                            </div>
+                            <div class="sub-list">
+                                ${cat.sub.map(s => `<div># ${s}</div>`).join('')}
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+            <div class="sidebar-footer">
+                <button class="feedback-btn ${activeView === 'feedback' ? 'active' : ''}">
+                    <span>💬</span> 의견 제공
+                </button>
+            </div>
         `;
+
+        this.querySelector('.logo').onclick = () => {
+            this.dispatchEvent(new CustomEvent('go-home', { bubbles: true }));
+        };
+
+        this.querySelector('.feedback-btn').onclick = () => {
+            this.dispatchEvent(new CustomEvent('go-feedback', { bubbles: true }));
+        };
 
         this.querySelectorAll('.cat-item').forEach(item => {
             item.onclick = () => {
@@ -579,5 +628,4 @@ customElements.define('community-sidebar', CommunitySidebar);
 customElements.define('community-chat', CommunityChat);
 customElements.define('community-message', CommunityMessage);
 customElements.define('community-welcome', CommunityWelcome);
-ents.define('community-chat', CommunityChat);
-customElements.define('community-message', CommunityMessage);
+customElements.define('community-feedback', CommunityFeedback);
