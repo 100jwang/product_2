@@ -18,10 +18,12 @@ A sophisticated, real-time-inspired community platform for sharing information. 
 ## Current State
 - Core UI components and navigation implemented.
 - Formspree feedback integration complete.
-- **In Progress:** Integrating Firebase Authentication and Firestore persistence.
+- Firebase Authentication (Google & Email) integrated and functional.
+- Firestore real-time chat persistence partially implemented.
 
-## Current Plan (Firebase Integration)
-1.  **Firebase Setup:** Add SDKs and configuration placeholders.
-2.  **Auth UI:** Create `<community-auth>` for login/signup.
-3.  **Persistence:** Migrate `<community-chat>` to use Firestore for message storage.
-4.  **User State:** Display user profile in messages and sidebar.
+## Current Plan (Firestore Persistence & Optimization)
+1.  **Firestore Data Model:** Define a `messages` collection where each document contains `categoryId`, `userId`, `userName`, `userPhoto`, `text`, and `timestamp`.
+2.  **Real-time Synchronization:** Use `onSnapshot` to listen for new messages in the active category and update the UI instantly.
+3.  **Security Rules:** Define and provide the necessary Firestore Security Rules to allow authenticated users to read/write messages while protecting the data.
+4.  **Indexing:** Ensure composite indexes are suggested for queries filtering by `categoryId` and ordering by `timestamp`.
+5.  **Robust Error Handling:** Enhance the chat component to handle potential Firestore errors and provide feedback to the user.

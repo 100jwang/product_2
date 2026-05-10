@@ -708,6 +708,7 @@ class CommunityChat extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.messages = [];
         this.unsubscribe = null;
+        this.isLoading = true;
     }
 
     static get observedAttributes() { return ['active-id']; }
@@ -732,33 +733,55 @@ class CommunityChat extends HTMLElement {
         const catId = this.getAttribute('active-id');
         if (!catId) return;
 
-        const q = query(
-            collection(window.db, "messages"),
-            where("categoryId", "==", catId),
-            orderBy("timestamp", "asc")
-        );
+        this.isLoading = true;
+        this.render();
 
-        this.unsubscribe = onSnapshot(q, (snapshot) => {
-            this.messages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        try {
+            const q = query(
+                collection(window.db, "messages"),
+                where("categoryId", "==", catId),
+                orderBy("timestamp", "asc")
+            );
+
+            this.unsubscribe = onSnapshot(q, (snapshot) => {
+                this.messages = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                this.isLoading = false;
+                this.render();
+                this.scrollToBottom();
+            }, (error) => {
+                console.error("Firestore Snapshot Error:", error);
+                this.isLoading = false;
+                this.render();
+            });
+        } catch (error) {
+            console.error("Firestore Query Error:", error);
+            this.isLoading = false;
             this.render();
-            this.scrollToBottom();
-        });
+        }
     }
 
     async sendMessage() {
         const input = this.shadowRoot.querySelector('.message-input');
+        const btn = this.shadowRoot.querySelector('.send-btn');
         const text = input.value.trim();
-        if (!text) return;
+        
+        if (!text || btn.disabled) return;
 
         const user = window.auth.currentUser;
-        if (!user) return;
+        if (!user) {
+            alert("로그인이 필요합니다.");
+            return;
+        }
 
         const catId = this.getAttribute('active-id');
 
         try {
+            btn.disabled = true;
+            btn.textContent = '...';
+            
             await addDoc(collection(window.db, "messages"), {
                 categoryId: catId,
                 userId: user.uid,
@@ -767,10 +790,15 @@ class CommunityChat extends HTMLElement {
                 text: text,
                 timestamp: serverTimestamp()
             });
+            
             input.value = '';
         } catch (error) {
             console.error("Error sending message: ", error);
-            alert("메시지 전송 중 오류가 발생했습니다. Firestore 설정을 확인해주세요.");
+            alert("메시지 전송 중 오류가 발생했습니다. Firestore 규칙이나 인덱스 설정을 확인해주세요.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '전송';
+            input.focus();
         }
     }
 
@@ -861,13 +889,20 @@ class CommunityChat extends HTMLElement {
                     color: oklch(50% 0.02 230);
                     margin-top: 2rem;
                 }
+                .loading-msg {
+                    text-align: center;
+                    color: var(--primary-color);
+                    margin-top: 2rem;
+                    font-weight: 600;
+                }
             </style>
             <div class="chat-header">
                 <span>${cat.icon}</span>
                 <h2>${cat.name} 정보공유방</h2>
             </div>
             <div class="message-list">
-                ${this.messages.map(msg => `
+                ${this.isLoading ? '<div class="loading-msg">메시지를 불러오는 중...</div>' : ''}
+                ${!this.isLoading && this.messages.map(msg => `
                     <community-message 
                         user="${msg.userName}" 
                         text="${msg.text}" 
@@ -876,16 +911,19 @@ class CommunityChat extends HTMLElement {
                         ${msg.userId === window.auth.currentUser?.uid ? 'mine' : ''}>
                     </community-message>
                 `).join('')}
-                ${this.messages.length === 0 ? '<div class="empty-msg">아직 대화가 없습니다. 첫 메시지를 남겨보세요!</div>' : ''}
+                ${!this.isLoading && this.messages.length === 0 ? '<div class="empty-msg">아직 대화가 없습니다. 첫 메시지를 남겨보세요!</div>' : ''}
             </div>
             <div class="input-area">
-                <input type="text" class="message-input" placeholder="정보를 공유해보세요...">
-                <button class="send-btn">전송</button>
+                <input type="text" class="message-input" placeholder="정보를 공유해보세요..." ${this.isLoading ? 'disabled' : ''}>
+                <button class="send-btn" ${this.isLoading ? 'disabled' : ''}>전송</button>
             </div>
         `;
 
-        this.shadowRoot.querySelector('.send-btn').onclick = () => this.sendMessage();
-        this.shadowRoot.querySelector('.message-input').onkeydown = (e) => {
+        const sendBtn = this.shadowRoot.querySelector('.send-btn');
+        const input = this.shadowRoot.querySelector('.message-input');
+
+        if (sendBtn) sendBtn.onclick = () => this.sendMessage();
+        if (input) input.onkeydown = (e) => {
             if (e.key === 'Enter') this.sendMessage();
         };
     }
