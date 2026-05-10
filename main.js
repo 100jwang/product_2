@@ -944,6 +944,9 @@ class CommunityMessage extends HTMLElement {
                     align-items: flex-end;
                     gap: 12px;
                     flex-direction: ${isMine ? 'row-reverse' : 'row'};
+                    align-self: ${isMine ? 'flex-end' : 'flex-start'};
+                    width: fit-content;
+                    max-width: 85%;
                 }
                 .avatar {
                     width: 36px;
@@ -958,19 +961,22 @@ class CommunityMessage extends HTMLElement {
                     flex-direction: column;
                     align-items: ${isMine ? 'flex-end' : 'flex-start'};
                     gap: 4px;
-                    max-width: 70%;
                 }
                 .user-name {
                     font-size: 0.75rem;
                     font-weight: 600;
                     color: var(--text-muted);
+                    margin-bottom: 2px;
+                    ${isMine ? 'display: none;' : ''}
                 }
                 .bubble {
-                    padding: var(--spacing-md);
-                    border-radius: var(--radius-md);
+                    padding: 10px 16px;
+                    border-radius: 18px;
                     font-size: 0.95rem;
                     box-shadow: var(--shadow-sm);
                     position: relative;
+                    line-height: 1.4;
+                    word-break: break-word;
                 }
                 .bubble-mine {
                     background-color: var(--primary-color);
@@ -986,6 +992,7 @@ class CommunityMessage extends HTMLElement {
                 .time {
                     font-size: 0.65rem;
                     color: var(--text-muted);
+                    margin-top: 2px;
                 }
             </style>
             <img class="avatar" src="${photo || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}" alt="Avatar">
